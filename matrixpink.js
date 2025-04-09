@@ -1,17 +1,25 @@
 var CNV = document.getElementById("c");
 var CTX = CNV.getContext("2d");
 var columns;
-var fontSize = 15;
+var fontSize = 25;
 var drops = [];
 var dropSpeeds = [];
 var activeDrops = [];
+var dropCooldowns = [];
 const colr = {};
-colr.h = 290;
+colr.h = 290;   // bright purple hue
 colr.s = 100;
 colr.l = 50;
-let drawDelay = 40;
-let trailAlpha = 0.05;
+let drawDelay = 33;
+let trailAlpha = 0.028;
 var chinese = "田由甲申甴电甶男甸甹町画甼甽甾甿畀畁畂畃畄畅畆畇畈畉畊畋界畍畎畏畐畑";
+
+let firstLoad = true;
+
+// Global trail and spacing settings for debug info
+var maxTrailLength = 10;
+var trailSpacingFactor = 30;
+var columnSpacing = 1;
 /////////////////////////////////////////////////////////
 chinese = [...chinese];
 console.log(chinese);
@@ -55,14 +63,18 @@ function calcColumns() {
 	console.log(columns);
 	for (var x = 0; x < columns; x++) {
 	    drops[x] = Math.floor(Math.random() * (CNV.height / fontSize));
-	    dropSpeeds[x] = 0.95 + Math.random() * 0.1; // speed factor between 0.95 and 1.05
+	    dropSpeeds[x] = 0.90 + Math.random() * 0.1; // speed factor between 0.95 and 1.05
 	    activeDrops[x] = [];
-	    // Initialize with 1-3 drops per column
-	    let numDrops = 1 + Math.floor(Math.random() * 3);
+	    dropCooldowns[x] = 0; // cooldown timer for new drops
+
+	    // Initialize with 1 drop per column
+	    let numDrops = 1;
+	    const spacing = 100; // increase this value to increase vertical space between drops
+	    const jitter = 100;   // small random offset to avoid perfect alignment
 	    for (let j = 0; j < numDrops; j++) {
 	        activeDrops[x].push({
-	            y: Math.random() * (CNV.height / fontSize),
-	            speed: 0.95 + Math.random() * 0.1
+	            y: 0,
+	            speed: 0.5 + Math.random() * 0.1
 	        });
 	    }
 	}
@@ -82,66 +94,143 @@ resize();
 window.addEventListener("resize", resize);
 
 let timer = performance.now();
+let frameCounter = 0;
+let currentFPS = 60;
+let speedFactor = 0.2; // slow speed factor for smooth slow motion
 let timerArray = [];
 //drawing the characters
 requestAnimationFrame(function draw() {
     setTimeout(() => {
         requestAnimationFrame(draw);
     }, drawDelay);
-	
-	   CTX.fillStyle = `rgba(0, 0, 0, ${trailAlpha})`;
-	   CTX.fillRect(0, 0, CNV.width, CNV.height);
-	CTX.fillStyle = `hsl(${colr.h},${colr.s}%,${colr.l}%)`; //green text
-	CTX.font = fontSize + "px arial";
-	//looping over drops
-	for (var i = 0; i < drops.length; i++) {
-		// Occasionally add a new drop at the top
-		if (Math.random() > 0.98) {
-			activeDrops[i].push({
-				y: 0,
-				speed: 0.95 + Math.random() * 0.1
-			});
-		}
 
-		for (let j = 0; j < activeDrops[i].length; j++) {
-			let drop = activeDrops[i][j];
-			var text = chinese[Math.floor(Math.random() * chinese.length)];
-			CTX.fillText(text, i * fontSize, drop.y * fontSize);
+    frameCounter++;
 
-			drop.y += drop.speed;
+    CTX.fillStyle = `rgba(0, 0, 0, ${trailAlpha})`;
+    CTX.fillRect(0, 0, CNV.width, CNV.height);
+    CTX.fillStyle = `hsl(${colr.h},${colr.s}%,${colr.l}%)`; //green text
+    CTX.font = fontSize + "px arial";
 
-			if (drop.y * fontSize > CNV.height) {
-				activeDrops[i].splice(j, 1);
-				j--;
-			}
-		}
-	}
-	if (viewDebugData) {
-		let debugFontSize = 30;
-		CTX.font = debugFontSize + "px arial"
-		CTX.fillStyle = "#000";
-		CTX.strokeStyle = "#fff";
-		CTX.lineWidth = 2;
-		CTX.fillRect(0, 0, 300, 300);
-		CTX.strokeRect(0, 0, 300, 300);
+    for (var i = 0; i < drops.length; i++) {
+        // Occasionally add a new drop at the top
+        // Decrease cooldown timer
+        if (dropCooldowns[i] > 0) {
+            dropCooldowns[i]--;
+        }
 
-		CTX.fillStyle = "#fff";
-		CTX.fillText(`drawDelay  - ${drawDelay}`, 10, debugFontSize);
-		CTX.fillText(`Hue	     - ${colr.h}`, 10, debugFontSize * 2);
-		CTX.fillText(`Saturation - ${colr.s}`, 10, debugFontSize * 3);
-		CTX.fillText(`Luminance  - ${colr.l}`, 10, debugFontSize * 4);
-		CTX.fillText(`fontSize   - ${fontSize}`, 10, debugFontSize * 5);
-		// CTX.fillStyle = "#fff";
-		let now = performance.now();
-		timerArray.push(now-timer);
-		if (timerArray.length > 20) timerArray.shift();
-		let sum = timerArray.reduce((a, b) => (a + b)) / timerArray.length;
-		CTX.fillText(`performance- ${Math.floor(1000/(now-timer))}fps`, 10, debugFontSize * 6);
-		CTX.fillText(`               - ${Math.floor(now-timer)}ms`, 10, debugFontSize * 7);
-CTX.fillText(`               - ${Math.round(sum)}`, 10, debugFontSize * 9);
+        if ((firstLoad || Math.random() > 0.98) && dropCooldowns[i] <= 0) {
+            if (activeDrops[i].length === 0) { // only add new drop if none active
+                activeDrops[i].push({
+                    y: 0,
+                    speed: 0.95 + Math.random() * 0.1,
+                    char: chinese[Math.floor(Math.random() * chinese.length)],
+                    changeRate: 0.98 + Math.random() * 0.02, // 0.98 - 1.0
+                    trailAlpha: 0.01 + Math.random() * 0.09  // 0.01 - 0.1
+                });
+            }
+        }
 
-		timer = now;
-	}
+        for (let j = Math.max(0, activeDrops[i].length - maxTrailLength); j < activeDrops[i].length; j++) {
+            let drop = activeDrops[i][j];
+            let changeLetter = false;
+            // Change letter if close to head (within 2 font heights)
+            if (drop.y * fontSize - drop.y * fontSize % fontSize < CNV.height) {
+                if (drop.y * fontSize - drop.y * fontSize % fontSize - drop.y * fontSize < 2 * fontSize) {
+                    changeLetter = true;
+                }
+            }
+            // Or randomly flicker with low chance
+            if (Math.random() > drop.changeRate) {
+                changeLetter = true;
+            }
+            if (currentFPS > 100) {
+                changeLetter = (frameCounter % 3 === 0);
+            }
+            if (changeLetter) {
+                drop.char = chinese[Math.floor(Math.random() * chinese.length)];
+            }
+            var text = drop.char || chinese[Math.floor(Math.random() * chinese.length)];
+            
+            let yPos;
+            const defaultColor = `hsl(${colr.h},${colr.s}%,${colr.l}%)`;
+            CTX.fillStyle = defaultColor;
+
+            if (j === activeDrops[i].length - 1) {
+                // Head: no extra spacing
+                yPos = drop.y * fontSize;
+            } else {
+                // Trail: apply spacing
+                yPos = (drop.y + j * trailSpacingFactor) * fontSize;
+                CTX.fillStyle = defaultColor;
+            }
+            CTX.fillText(text, i * fontSize * columnSpacing, yPos);
+    
+            drop.y += drop.speed * speedFactor;
+    
+            if (drop.y * fontSize > CNV.height) {
+                activeDrops[i].splice(j, 1);
+                j--;
+                dropCooldowns[i] = 30; // cooldown frames before new drop
+            }
+        }
+    }
+
+    if (firstLoad) {
+        firstLoad = false;
+    }
+
+    if (viewDebugData) {
+        let debugFontSize = 30;
+        CTX.font = debugFontSize + "px arial"
+        CTX.fillStyle = "#000";
+        CTX.strokeStyle = "#fff";
+        CTX.lineWidth = 2;
+        CTX.fillRect(0, 0, 400, 500);
+        CTX.strokeRect(0, 0, 400, 500);
+
+        CTX.fillStyle = "#fff";
+        CTX.fillText(`drawDelay  - ${drawDelay}`, 10, debugFontSize);
+        CTX.fillText(`Hue	     - ${colr.h}`, 10, debugFontSize * 2);
+        CTX.fillText(`Saturation - ${colr.s}`, 10, debugFontSize * 3);
+        CTX.fillText(`Luminance  - ${colr.l}`, 10, debugFontSize * 4);
+        CTX.fillText(`fontSize   - ${fontSize}`, 10, debugFontSize * 5);
+
+        // New debug info
+        CTX.fillText(`Columns    - ${drops.length}`, 10, debugFontSize * 6);
+
+        let dropCounts = activeDrops.map(d => d.length);
+        let minDrops = Math.min(...dropCounts);
+        let maxDrops = Math.max(...dropCounts);
+        let avgDrops = (dropCounts.reduce((a,b)=>a+b,0)/dropCounts.length).toFixed(2);
+
+        CTX.fillText(`Drops/Col  - min:${minDrops} max:${maxDrops} avg:${avgDrops}`, 10, debugFontSize * 7);
+        CTX.fillText(`Trail Len  - ${typeof maxTrailLength !== 'undefined' ? maxTrailLength : 'N/A'}`, 10, debugFontSize * 8);
+        CTX.fillText(`Trail Spc  - ${typeof trailSpacing !== 'undefined' ? trailSpacing : 'N/A'}`, 10, debugFontSize * 9);
+        CTX.fillText(`Col Spc    - ${typeof columnSpacing !== 'undefined' ? columnSpacing : 'N/A'}`, 10, debugFontSize * 10);
+
+        let now = performance.now();
+        let fps = 1000 / (now - timer);
+        currentFPS = fps;
+        timerArray.push(now - timer);
+        if (timerArray.length > 20) timerArray.shift();
+        let sum = timerArray.reduce((a, b) => (a + b)) / timerArray.length;
+        CTX.fillText(`performance- ${Math.floor(fps)}fps`, 10, debugFontSize * 11);
+        CTX.fillText(`               - ${Math.floor(now - timer)}ms`, 10, debugFontSize * 12);
+        CTX.fillText(`               - ${Math.round(sum)}`, 10, debugFontSize * 13);
+
+        timer = now;
+
+        // Adjust trailAlpha based on FPS
+        if (currentFPS > 60) {
+            trailAlpha = 0.01; // longer trails at high FPS
+        } else if (currentFPS < 30) {
+            trailAlpha = 0.1; // shorter trails at low FPS
+        } else {
+            trailAlpha = 0.03; // default
+        }
+        // Clamp to minimum to avoid endless trails
+        trailAlpha = Math.max(trailAlpha, 0.03);
+    }
 })
 
 // function draw() {
@@ -296,7 +385,7 @@ function keybHandler(event) {
 	        colr.h = 120;
 	        colr.s = 100;
 	        colr.l = 50;
-	        drawDelay = 50;
+	        drawDelay = 30;
 	        trailAlpha = 0.06;
 	        break;
 	    default:
@@ -374,9 +463,9 @@ requestAnimationFrame(updateDebugInfo);
 
 // Reset button functionality
 function resetDefaults() {
-    drawDelay = 40;
-    trailAlpha = 0.06;
-    fontSize = 15;
+    drawDelay = 30;
+    trailAlpha = 0.029;
+    fontSize = 25;
     colr.h = 290;
     colr.s = 100;
     colr.l = 50;
@@ -391,7 +480,7 @@ function resetDefaults() {
         for (let j = 0; j < numDrops; j++) {
             activeDrops[i].push({
                 y: Math.random() * (CNV.height / fontSize),
-                speed: 0.95 + Math.random() * 0.1
+                speed: 0.95 + Math.random() * 0.13
             });
         }
         dropSpeeds[i] = 0.95 + Math.random() * 0.1;
