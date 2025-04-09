@@ -3,11 +3,14 @@ var CTX = CNV.getContext("2d");
 var columns;
 var fontSize = 24;
 var drops = [];
+var dropSpeeds = [];
+var activeDrops = [];
 const colr = {};
 colr.h = 290;
 colr.s = 100;
 colr.l = 50;
 let drawDelay = 50;
+let trailAlpha = 0.2;
 var chinese = "田由甲申甴电甶男甸甹町画甼甽甾甿畀畁畂畃畄畅畆畇畈畉畊畋界畍畎畏畐畑";
 /////////////////////////////////////////////////////////
 chinese = [...chinese];
@@ -51,7 +54,17 @@ function calcColumns() {
 	columns = Math.round(CNV.width / fontSize); //number of columns for the rain
 	console.log(columns);
 	for (var x = 0; x < columns; x++) {
-		drops[x] = 1;
+	    drops[x] = Math.floor(Math.random() * (CNV.height / fontSize));
+	    dropSpeeds[x] = 0.95 + Math.random() * 0.1; // speed factor between 0.95 and 1.05
+	    activeDrops[x] = [];
+	    // Initialize with 1-3 drops per column
+	    let numDrops = 1 + Math.floor(Math.random() * 3);
+	    for (let j = 0; j < numDrops; j++) {
+	        activeDrops[x].push({
+	            y: Math.random() * (CNV.height / fontSize),
+	            speed: 0.95 + Math.random() * 0.1
+	        });
+	    }
 	}
 }
 
@@ -72,28 +85,36 @@ let timer = performance.now();
 let timerArray = [];
 //drawing the characters
 requestAnimationFrame(function draw() {
-	// setTimeout(() => {
-		requestAnimationFrame(draw);
-	// }, drawDelay);
+    setTimeout(() => {
+        requestAnimationFrame(draw);
+    }, drawDelay);
 	
-	CTX.fillStyle = "rgba(0, 0, 0, 0.1)";
-	CTX.fillRect(0, 0, CNV.width, CNV.height);
+	   CTX.fillStyle = `rgba(0, 0, 0, ${trailAlpha})`;
+	   CTX.fillRect(0, 0, CNV.width, CNV.height);
 	CTX.fillStyle = `hsl(${colr.h},${colr.s}%,${colr.l}%)`; //green text
 	CTX.font = fontSize + "px arial";
 	//looping over drops
 	for (var i = 0; i < drops.length; i++) {
-		//a random chinese character to print
-		var text = chinese[Math.floor(Math.random() * chinese.length)];
-		//x = i*font_size, y = value of drops[i]*font_size
-		CTX.fillText(text, i * fontSize, drops[i] * fontSize);
-
-		//sending the drop back to the top randomly after it has crossed the screen
-		//adding a randomness to the reset to make the drops scattered on the Y axis
-		if (drops[i] * fontSize > CNV.height && Math.random() > 0.99) {
-			drops[i] = 0;
+		// Occasionally add a new drop at the top
+		if (Math.random() > 0.98) {
+			activeDrops[i].push({
+				y: 0,
+				speed: 0.95 + Math.random() * 0.1
+			});
 		}
-		//incrementing Y coordinate
-		drops[i]++;
+
+		for (let j = 0; j < activeDrops[i].length; j++) {
+			let drop = activeDrops[i][j];
+			var text = chinese[Math.floor(Math.random() * chinese.length)];
+			CTX.fillText(text, i * fontSize, drop.y * fontSize);
+
+			drop.y += drop.speed;
+
+			if (drop.y * fontSize > CNV.height) {
+				activeDrops[i].splice(j, 1);
+				j--;
+			}
+		}
 	}
 	if (viewDebugData) {
 		let debugFontSize = 30;
@@ -195,59 +216,52 @@ function keybHandler(event) {
 	let keyPush = event.code.toUpperCase();
 	console.log(keyPush);
 	switch (keyPush) {
-		// case "SPACE":
-		case "MINUS":
-		case "NUMPADSUBTRACT":
-			fontSize--;
-			calcColumns();
-			break;
-		case "EQUAL":
-		case "NUMPADADD":
-			fontSize++;
-			calcColumns();
-			break;
-		case "KEYF":
-			fullScreen();
-		case "NUMPAD7":
-			colr.h += 10;
-			break;
-		case "NUMPAD4":
-			colr.h -= 10;
-			break;
-		case "NUMPAD8":
-			colr.s += 10;
-			break;
-		case "NUMPAD5":
-			colr.s -= 10;
-			break;
-		case "NUMPAD9":
-			colr.l += 10;
-			break;
-		case "NUMPAD6":
-			colr.l -= 10;
-			break;
-		case "ARROWUP":
-			drawDelay -= 1;
-			break;
-		case "ARROWDOWN":
-			drawDelay += 1;
-			break;
-		case "BACKQUOTE":
-			viewDebugData == false ? viewDebugData = true : viewDebugData = false;
-			break;
-		case "DIGIT2":
-		case "NUMPAD2":
-			// showModule("showHistory");
-			break;
-		case "DIGIT3":
-		case "NUMPAD3":
-			// showModule("showUploadStuff");
-			break;
-		case "ESCAPE":
-			// showModule("spinCanvas");
-			break;
-		default:
-			break;
+	    case "DIGIT1":
+	        fullScreen();
+	        break;
+	    case "DIGIT2":
+	        fontSize--;
+	        calcColumns();
+	        break;
+	    case "DIGIT3":
+	        fontSize++;
+	        calcColumns();
+	        break;
+	    case "DIGIT4":
+	        colr.h += 10;
+	        break;
+	    case "DIGIT5":
+	        colr.h -= 10;
+	        break;
+	    case "DIGIT6":
+	        colr.s += 10;
+	        break;
+	    case "DIGIT7":
+	        colr.s -= 10;
+	        break;
+	    case "DIGIT8":
+	        drawDelay -= 1;
+	        break;
+	    case "DIGIT9":
+	        drawDelay += 1;
+	        break;
+	    case "MINUS":
+	        trailAlpha -= 0.01;
+	        break;
+	    case "EQUAL":
+	        trailAlpha += 0.01;
+	        break;
+	    case "BACKQUOTE":
+	        viewDebugData = !viewDebugData;
+	        const popup = document.getElementById('popup');
+	        if (popup.style.display === 'flex') {
+	            popup.style.display = 'none';
+	        } else {
+	            popup.style.display = 'flex';
+	        }
+	        break;
+	    default:
+	        break;
 	}
 	colr.h %= 360;
 	colr.h < 0 ? colr.h = 350 : false;
@@ -255,8 +269,10 @@ function keybHandler(event) {
 	colr.s < 0 ? colr.s = 0 : false;
 	colr.l > 100 ? colr.l = 100 : false;
 	colr.l < 0 ? colr.l = 0 : false;
-	drawDelay > 100 ? drawDelay = 100 : false;
-	drawDelay < 17 ? drawDelay = 17 : false;
+	drawDelay > 200 ? drawDelay = 200 : false;
+	drawDelay < 5 ? drawDelay = 5 : false;
+	trailAlpha > 1 ? trailAlpha = 1 : false;
+	trailAlpha < 0 ? trailAlpha = 0 : false;
 	localStorage.setItem('drawDelay', drawDelay);
 	localStorage.setItem('colr', JSON.stringify(colr));
 	localStorage.setItem('fontSize', fontSize);
@@ -265,3 +281,14 @@ function keybHandler(event) {
 	fontSize < 5 ? fontSize = 5 : false;
 	// resize();
 }
+
+document.getElementById('openPopupBtn').addEventListener('click', function() {
+    document.getElementById('popup').style.display = 'flex';
+});
+
+document.getElementById('closePopupBtn').addEventListener('click', function() {
+    document.getElementById('popup').style.display = 'none';
+});
+
+// Ensure hotkeys work even when popup is focused
+window.addEventListener("keyup", keybHandler, true);

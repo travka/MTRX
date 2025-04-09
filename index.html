@@ -17,11 +17,94 @@ overflow: hidden;
         #c{
             width: 100%;
             height: 100vh;
+            position: relative;
+            z-index: 0;
+        }
+        #openPopupBtn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+        }
+        #popup {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            font-family: monospace;
+            color: white;
+        }
+        #popup > div {
+            background: black;
+            padding: 20px;
+            min-width: 300px;
+            min-height: 200px;
+            position: relative;
+            border: 1px solid hsl(290, 100%, 50%);
+        }
+        #closePopupBtn, #openPopupBtn {
+            background: black;
+            color: hsl(290, 100%, 50%);
+            border: 1px solid hsl(290, 100%, 50%);
+            padding: 5px 10px;
+            font-family: monospace;
+            cursor: pointer;
+        }
+        #closePopupBtn:hover, #openPopupBtn:hover {
+            background: hsl(290, 100%, 50%);
+            color: black;
+        }
+        #closePopupBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
         }
     </style>
     <script src="./matrixpink.js" defer></script>
 </head>
 <body>
     <canvas id="c"></canvas>
+
+
+    <div id="popup" style="
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    ">
+        <div style="
+            background: black;
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 200px;
+            min-height: 100px;
+            position: relative;
+        ">
+            <button id="closePopupBtn" style="position: absolute; top: 10px; right: 10px;">Close</button>
+            <h2>Hotkeys</h2>
+            <ul style="padding-left: 20px;">
+                <li>1: toggle fullscreen</li>
+                <li>2: decrease font size</li>
+                <li>3: increase font size</li>
+                <li>4: hue +</li>
+                <li>5: hue -</li>
+                <li>6: saturation +</li>
+                <li>7: saturation -</li>
+                <li>8: speed up falling</li>
+                <li>9: slow down falling</li>
+                <li>[ : longer trails</li>
+                <li>] : shorter trails</li>
+                <li>Backquote (`): toggle debug info</li>
+            </ul>
+        </div>
+    </div>
 </body>
 </html>
