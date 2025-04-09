@@ -1,7 +1,7 @@
 var CNV = document.getElementById("c");
 var CTX = CNV.getContext("2d");
 var columns;
-var fontSize = 24;
+var fontSize = 15;
 var drops = [];
 var dropSpeeds = [];
 var activeDrops = [];
@@ -9,8 +9,8 @@ const colr = {};
 colr.h = 290;
 colr.s = 100;
 colr.l = 50;
-let drawDelay = 50;
-let trailAlpha = 0.2;
+let drawDelay = 40;
+let trailAlpha = 0.05;
 var chinese = "田由甲申甴电甶男甸甹町画甼甽甾甿畀畁畂畃畄畅畆畇畈畉畊畋界畍畎畏畐畑";
 /////////////////////////////////////////////////////////
 chinese = [...chinese];
@@ -259,6 +259,45 @@ function keybHandler(event) {
 	        } else {
 	            popup.style.display = 'flex';
 	        }
+	        const debugElem = document.getElementById('debugInfo');
+	        if (debugElem) debugElem.style.display = viewDebugData ? 'block' : 'none';
+	        break;
+	    case "KEYL":
+	        trailAlpha = 0.05; // long trail
+	        break;
+	    case "KEYK":
+	        trailAlpha = 0.3; // short trail
+	        break;
+	    case "KEYS":
+	        colr.s += 5;
+	        break;
+	    case "KEYA":
+	        colr.s -= 5;
+	        break;
+	    case "KEYR":
+	        resetDefaults();
+	        break;
+	    case "KEYG":
+	        colr.h = 120; colr.s = 100; colr.l = 50; // green
+	        break;
+	    case "KEYP":
+	        colr.h = 320; colr.s = 100; colr.l = 50; // pink
+	        break;
+	    case "KEYB":
+	        colr.h = 240; colr.s = 100; colr.l = 50; // blue
+	        break;
+	    case "KEYW":
+	        colr.s = 0; colr.l = 100; // white
+	        break;
+	    case "KEYD":
+	        colr.h = 290; colr.s = 100; colr.l = 50; // default pink
+	        break;
+	    case "KEYM":
+	        colr.h = 120;
+	        colr.s = 100;
+	        colr.l = 50;
+	        drawDelay = 50;
+	        trailAlpha = 0.06;
 	        break;
 	    default:
 	        break;
@@ -292,3 +331,75 @@ document.getElementById('closePopupBtn').addEventListener('click', function() {
 
 // Ensure hotkeys work even when popup is focused
 window.addEventListener("keyup", keybHandler, true);
+
+// Update debug info every frame
+function updateDebugInfo() {
+    let totalDrops = 0;
+    let minDrops = Infinity;
+    let maxDrops = 0;
+    for (let arr of activeDrops) {
+        totalDrops += arr.length;
+        if (arr.length < minDrops) minDrops = arr.length;
+        if (arr.length > maxDrops) maxDrops = arr.length;
+    }
+    let avgDrops = (columns > 0) ? (totalDrops / columns).toFixed(2) : 0;
+
+    let avgSpeed = 0;
+    if (dropSpeeds.length > 0) {
+        avgSpeed = dropSpeeds.reduce((a, b) => a + b, 0) / dropSpeeds.length;
+    }
+
+    const info = `
+Time: ${new Date().toLocaleTimeString()}
+drawDelay: ${drawDelay}
+trailAlpha: ${trailAlpha.toFixed(3)}
+fontSize: ${fontSize}
+Hue: ${colr.h}
+Saturation: ${colr.s}
+Luminance: ${colr.l}
+Columns: ${columns}
+Active Drops: ${totalDrops}
+Drops per Column: min ${minDrops}, max ${maxDrops}, avg ${avgDrops}
+Avg Drop Speed: ${avgSpeed.toFixed(3)}
+Fullscreen: ${!!document.fullscreenElement}
+`;
+    const debugElem = document.getElementById('debugInfo');
+    if (debugElem) {
+        debugElem.textContent = info;
+        debugElem.style.display = viewDebugData ? 'block' : 'none';
+    }
+    requestAnimationFrame(updateDebugInfo);
+}
+requestAnimationFrame(updateDebugInfo);
+
+// Reset button functionality
+function resetDefaults() {
+    drawDelay = 40;
+    trailAlpha = 0.06;
+    fontSize = 15;
+    colr.h = 290;
+    colr.s = 100;
+    colr.l = 50;
+    viewDebugData = false;
+
+    calcColumns();
+
+    // Reset active drops and speeds
+    for (let i = 0; i < columns; i++) {
+        activeDrops[i] = [];
+        let numDrops = 1 + Math.floor(Math.random() * 3);
+        for (let j = 0; j < numDrops; j++) {
+            activeDrops[i].push({
+                y: Math.random() * (CNV.height / fontSize),
+                speed: 0.95 + Math.random() * 0.1
+            });
+        }
+        dropSpeeds[i] = 0.95 + Math.random() * 0.1;
+    }
+
+    localStorage.setItem('drawDelay', drawDelay);
+    localStorage.setItem('colr', JSON.stringify(colr));
+    localStorage.setItem('fontSize', fontSize);
+}
+
+document.getElementById('resetBtn').onclick = resetDefaults;
